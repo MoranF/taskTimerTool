@@ -3,7 +3,7 @@
   "name": "Task Timer Tool",
   "short_name": "Task Timer",
   "description": "A simple task timer tool to track progress.",
-  "start_url": "./task_timer_tool_pwa_final_plus_minus_fix.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f2f2f7",
   "theme_color": "#007aff",

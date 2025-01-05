@@ -3,7 +3,7 @@ self.addEventListener('install', event => {
     event.waitUntil(
         caches.open('task-timer-cache-v1').then(cache => {
             return cache.addAll([
-                './task_timer_tool_pwa_final_plus_minus_fix.html',
+                './index.html',
                 './manifest.json',
                 './icon.png'
             ]);
