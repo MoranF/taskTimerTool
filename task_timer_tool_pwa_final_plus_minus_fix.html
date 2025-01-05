@@ -1,0 +1,251 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Timer Tool - PWA Final Fix Plus Minus</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon.png" type="image/png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+                .then(() => console.log("Service Worker Registered"))
+                .catch(err => console.log("Service Worker Failed", err));
+        }
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f2f2f7;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .task-wrapper {
+            margin: 10px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .task-container {
+            padding: 10px;
+            border-radius: 12px;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s;
+            color: white;
+        }
+        .task-container:hover {
+            transform: scale(1.02);
+        }
+        .task-input {
+            border: none;
+            background: white;
+            padding: 5px 10px;
+            font-size: 16px;
+            border-radius: 8px;
+            outline: none;
+            width: 50%;
+            margin-right: 5px;
+        }
+        .task-timer {
+            font-size: 16px;
+        }
+        .timer-button {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            background-color: #007aff;
+        }
+        .timer-button:hover {
+            background-color: #005ecb;
+        }
+        .done-button {
+            padding: 10px 15px;
+            background-color: #ff3b30;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            cursor: pointer;
+            width: 80px;
+        }
+        .done-button:hover {
+            background-color: #d32f2f;
+        }
+        .add-remove-buttons {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 12px;
+            background-color: #e5e5ea;
+            color: #333;
+            border: none;
+        }
+        .add-remove-buttons:hover {
+            background-color: #d1d1d6;
+        }
+        .reset-button {
+            margin-top: 20px;
+            padding: 15px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 12px;
+            background-color: #ff9500;
+            color: white;
+            border: none;
+            width: 100%;
+        }
+        .reset-button:hover {
+            background-color: #e08900;
+        }
+        .result-text {
+            margin-top: 5px;
+            font-size: 14px;
+            color: #333;
+            padding: 10px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Task Timer Tool</h1>
+    <div id="tasks-container"></div>
+    <div style="text-align: center;">
+        <button id="add-task" class="add-remove-buttons">+</button>
+        <button id="remove-task" class="add-remove-buttons">-</button>
+    </div>
+    <button id="reset-all" class="reset-button">Reset All Tasks</button>
+
+    <script>
+        let defaultTasks = [
+            { id: 1, name: "Task 1", color: "#FF6B6B" },
+            { id: 2, name: "Task 2", color: "#6A89CC" },
+            { id: 3, name: "Task 3", color: "#82CCDD" },
+            { id: 4, name: "Task 4", color: "#B8E994" }
+        ];
+
+        let tasks = JSON.parse(JSON.stringify(defaultTasks));
+        let taskTimers = {};
+        let intervals = {};
+        let taskCounter = tasks.length;
+
+        function formatTime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hrs = Math.floor((seconds % 86400) / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+
+            if (days > 0) {
+                return `${days} days ${String(hrs).padStart(2, "0")} hours`;
+            }
+            return `${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+        }
+
+        function toggleTimer(taskId) {
+            const button = document.getElementById(`playpause-${taskId}`);
+            if (!taskTimers[taskId].active) {
+                taskTimers[taskId].active = true;
+                button.innerHTML = "❚❚";
+                if (!taskTimers[taskId].startTime) {
+                    taskTimers[taskId].startTime = new Date();
+                }
+                intervals[taskId] = setInterval(() => {
+                    taskTimers[taskId].netTime++;
+                    document.getElementById(`timer-${taskId}`).innerText = formatTime(taskTimers[taskId].netTime);
+                }, 1000);
+            } else {
+                taskTimers[taskId].active = false;
+                button.innerHTML = "▶";
+                clearInterval(intervals[taskId]);
+            }
+        }
+
+        function markDone(taskId) {
+            const now = new Date();
+            const grossTime = Math.floor((now - taskTimers[taskId].startTime) / 1000);
+            const netTime = taskTimers[taskId].netTime;
+            document.getElementById(`result-${taskId}`).innerText = `Gross: ${formatTime(grossTime)}, Net: ${formatTime(netTime)}`;
+            clearInterval(intervals[taskId]);
+        }
+
+        function resetAllTasks() {
+            Object.values(intervals).forEach(clearInterval);
+            document.getElementById("tasks-container").innerHTML = "";
+            tasks = JSON.parse(JSON.stringify(defaultTasks));
+            taskTimers = {};
+            intervals = {};
+            taskCounter = tasks.length;
+            tasks.forEach(createTask);
+        }
+
+        function createTask(task) {
+            const wrapper = document.createElement("div");
+            wrapper.className = "task-wrapper";
+
+            const container = document.createElement("div");
+            container.className = "task-container";
+            container.style.backgroundColor = task.color;
+
+            const input = document.createElement("input");
+            input.type = "text";
+            input.className = "task-input";
+
+            const timer = document.createElement("span");
+            timer.id = `timer-${task.id}`;
+            timer.className = "task-timer";
+            timer.innerText = "0:00:00";
+
+            const playPause = document.createElement("button");
+            playPause.className = "timer-button";
+            playPause.id = `playpause-${task.id}`;
+            playPause.innerHTML = "▶";
+            playPause.onclick = () => toggleTimer(task.id);
+
+            const doneButton = document.createElement("button");
+            doneButton.innerText = "Done";
+            doneButton.className = "done-button";
+            doneButton.onclick = () => markDone(task.id);
+
+            const result = document.createElement("div");
+            result.id = `result-${task.id}`;
+            result.className = "result-text";
+
+            container.appendChild(input);
+            container.appendChild(playPause);
+            container.appendChild(timer);
+            wrapper.appendChild(container);
+            wrapper.appendChild(doneButton);
+            wrapper.appendChild(result);
+            document.getElementById("tasks-container").appendChild(wrapper);
+
+            taskTimers[task.id] = { netTime: 0, active: false, startTime: null };
+        }
+
+        document.getElementById("add-task").onclick = () => createTask({ id: ++taskCounter, name: "", color: "#"+Math.floor(Math.random()*16777215).toString(16) });
+        document.getElementById("remove-task").onclick = () => {
+            if (document.getElementById("tasks-container").lastChild) {
+                document.getElementById("tasks-container").lastChild.remove();
+            }
+        };
+        document.getElementById("reset-all").onclick = resetAllTasks;
+        tasks.forEach(createTask);
+    </script>
+</body>
+</html>
